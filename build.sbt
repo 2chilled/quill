@@ -1,9 +1,9 @@
-import ReleaseTransformations._
 import com.typesafe.sbt.SbtScalariform.ScalariformKeys
-import scalariform.formatter.preferences._
+import ReleaseTransformations._
+import sbtcrossproject.crossProject
 import sbtrelease.ReleasePlugin
 import scala.sys.process.Process
-import sbtcrossproject.crossProject
+import scalariform.formatter.preferences._
 
 enablePlugins(TutPlugin)
 
@@ -11,9 +11,9 @@ lazy val sparkIncludeProp = Option(System.getProperty("spark.include"))
 
 lazy val modules = Seq[sbt.ClasspathDep[sbt.ProjectReference]](
   `quill-core-jvm`, `quill-core-js`, `quill-sql-jvm`, `quill-sql-js`,
-  `quill-jdbc`, `quill-finagle-mysql`, `quill-finagle-postgres`, `quill-async`,
+  `quill-jdbc`, `quill-jdbc-fs2`, `quill-finagle-mysql`, `quill-finagle-postgres`, `quill-async`,
   `quill-async-mysql`, `quill-async-postgres`, `quill-cassandra`, `quill-orientdb`
-) ++ 
+) ++
   Seq[sbt.ClasspathDep[sbt.ProjectReference]](`quill-spark`)
     .filter(_ => sparkIncludeProp.contains("true"))
 
@@ -86,6 +86,18 @@ lazy val `quill-jdbc` =
       )
     )
     .dependsOn(`quill-sql-jvm` % "compile->compile;test->test")
+
+lazy val `quill-jdbc-fs2` =
+  (project in file("quill-jdbc-fs2"))
+    .settings(commonSettings: _*)
+    .settings(mimaSettings: _*)
+    .settings(
+      fork in Test := true,
+      libraryDependencies ++= Seq(
+        "co.fs2" %% "fs2-core" % "1.0.0"
+      )
+    )
+    .dependsOn(`quill-jdbc` % "compile->compile;test->test")
 
 lazy val `quill-spark` =
   (project in file("quill-spark"))
@@ -288,11 +300,11 @@ lazy val commonSettings = ReleasePlugin.extraReleaseCommands ++ Seq(
   ),
   scalacOptions ++= {
     CrossVersion.partialVersion(scalaVersion.value) match {
-      case Some((2, 11)) => 
+      case Some((2, 11)) =>
         Seq("-Xlint", "-Ywarn-unused-import")
-      case Some((2, 12)) => 
-        Seq("-Xlint:-unused,_", 
-            "-Ywarn-unused:imports", 
+      case Some((2, 12)) =>
+        Seq("-Xlint:-unused,_",
+            "-Ywarn-unused:imports",
             "-Ycache-macro-class-loader:last-modified")
       case _ => Seq()
     }
